@@ -5,10 +5,10 @@ import re
 
 app = Flask(__name__)
 
-# Quantum Proxy
+# Quantum Proxy REPLACED
 PROXY_CONFIG = {
-    'http': 'http://Quantum-wn20la7van3ErYW9n:vb0ifitn@new.quantumproxies.net:10000',
-    'https': 'http://Quantum-wn20la7van3ErYW9n:vb0ifitn@new.quantumproxies.net:10000'
+    'http': 'http://bcvyjybs:qpc17kptincm@142.111.48.253:7030',
+    'https': 'http://bcvyjybs:qpc17kptincm@142.111.48.253:7030'
 }
 
 @app.route('/cc=<path:card_data>')
